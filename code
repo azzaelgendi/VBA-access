@@ -1,0 +1,395 @@
+'------------------------------------------------------------
+'
+'Revision History
+'Unbound Form
+'
+'October 15,2018 Started
+'Edited October 27th,2018
+'
+'------------------------------------------------------------
+Option Compare Database
+Option Explicit
+Dim connection As New ADODB.connection
+Dim customerUnbound As New ADODB.Recordset
+'------------------------------------------------------------------------------
+' The function fills out the listbox with full names retrived from recordset
+'------------------------------------------------------------------------------
+Private Sub UpdateList()
+    Dim fullName As String
+'  clear the list
+    Me.ListSelectCustomer.RowSource = ""
+    ' fill the listbox
+    If (customerUnbound.RecordCount <> 0) Then
+        Do While Not customerUnbound.EOF
+            fullName = customerUnbound.Fields("lastName") & ", " & customerUnbound.Fields("firstName")
+            ListSelectCustomer.AddItem """" & fullName & """"
+            customerUnbound.MoveNext
+        Loop
+    End If
+    customerUnbound.MoveFirst
+End Sub
+'------------------------------------------------------------------------------
+' The function lock unlock controls
+'------------------------------------------------------------------------------
+Private Sub BrowseMode(yes As Boolean)
+    Dim ctrl As Control 'declare control
+    If yes = True Then
+       Me.customerNumber.SetFocus
+    Else
+        Me.lastName.SetFocus 'set the focus
+    End If
+     'excutes when records found
+        For Each ctrl In Me.Controls
+                On Error Resume Next
+                If TypeOf ctrl Is TextBox Then 'Check the type of the control
+                    ctrl.Locked = yes
+                Else
+                    ctrl.Enabled = Not yes
+                End If
+        Next ctrl
+            Me.ListSelectCustomer.Enabled = yes
+            Me.TextFind.Locked = Not yes
+            Me.btnAdd.Enabled = yes
+            Me.btnEdit.Enabled = yes
+            Me.btnExit.Enabled = yes
+            Me.btnNext.Enabled = yes
+            Me.btnFirst.Enabled = yes
+            Me.btnLast.Enabled = yes
+            Me.btnPrevious.Enabled = yes
+            Me.btnFind.Enabled = yes
+            Me.btnDelete.Enabled = yes
+            Me.customerNumber.Locked = True 'customer number always locked
+End Sub
+'---------------------------------------------------------------------------------
+'Add new record
+'---------------------------------------------------------------------------------
+Private Sub btnAdd_Click()
+    customerUnbound.AddNew
+    LoadFields
+    BrowseMode (False)
+End Sub
+'------------------------------------------------------------
+' Cancel the edits
+'
+'------------------------------------------------------------
+Private Sub btnCancel_Click()
+        customerUnbound.Cancel
+        If customerUnbound.RecordCount < 0 Then
+            DataEmptyMode
+        Else
+        LoadFields
+        UpdateList
+        Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+        End If
+        BrowseMode True
+End Sub
+'------------------------------------------------------------
+' open edit mode
+'
+'------------------------------------------------------------
+Private Sub btnEdit_Click()
+    BrowseMode (False)
+End Sub
+'------------------------------------------------------------
+' Find Record based on LastName
+'
+'------------------------------------------------------------
+Private Sub btnFind_Click()
+If Len(Me.TextFind) > 0 Then
+         customerUnbound.MoveFirst
+        
+         customerUnbound.find "lastName >= '" & Replace(Me.TextFind.Value, "'", "''") & "'"
+        
+        If customerUnbound.EOF = True Then
+             customerUnbound.MoveLast
+        End If
+        
+        LoadFields
+        Me.ListSelectCustomer = Me.ListSelectCustomer.ItemData(customerUnbound.AbsolutePosition - 1)
+        
+    End If
+End Sub
+
+'------------------------------------------------------------
+' btnFirst,Move to the first record
+'
+'------------------------------------------------------------
+Private Sub btnFirst_Click()
+    If Not customerUnbound.BOF Then
+        customerUnbound.MoveFirst
+        LoadFields
+        Me.btnLast.Enabled = True
+        Me.btnNext.Enabled = True
+    Else
+        Me.btnPrevious.Enabled = False
+        Me.btnFirst.Enabled = False
+    End If
+    Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+End Sub
+'------------------------------------------------------------
+' btnPrevious,move to the Previous record
+'
+'------------------------------------------------------------
+Private Sub btnPrevious_Click()
+    If Not customerUnbound.BOF Then
+        customerUnbound.MovePrevious
+        LoadFields
+        Me.btnLast.Enabled = True
+        Me.btnNext.Enabled = True
+    Else
+        Me.btnPrevious.Enabled = False
+        Me.btnFirst.Enabled = False
+    End If
+    Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+End Sub
+'------------------------------------------------------------
+' btnNext,move to the next record
+'
+'------------------------------------------------------------
+Private Sub btnNext_Click()
+    If Not customerUnbound.EOF Then
+        customerUnbound.MoveNext
+        LoadFields
+        Me.btnPrevious.Enabled = True
+        Me.btnFirst.Enabled = True
+    Else
+        Me.btnLast.Enabled = False
+        Me.btnNext.Enabled = False
+    End If
+
+        Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+End Sub
+'------------------------------------------------------------
+' btnLast_Click Move to the last Record
+'
+'------------------------------------------------------------
+Private Sub btnLast_Click()
+    If Not customerUnbound.EOF Then
+        customerUnbound.MoveLast
+        LoadFields
+        Me.btnPrevious.Enabled = True
+        Me.btnFirst.Enabled = True
+    Else
+        Me.btnLast.Enabled = False
+        Me.btnNext.Enabled = False
+    End If
+        Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+End Sub
+
+'---------------------------------------------------------------------------------
+' save the record to the tabel
+'---------------------------------------------------------------------------------
+Private Sub btnSave_Click()
+    Dim errors As String
+    Dim str As String
+    Dim verify As String
+    str = Empty
+    errors = Edit
+'---------------------------------------------------------------------------------
+'check the error and ask the user to verify the save
+'---------------------------------------------------------------------------------
+    If (errors = "" And (IsNull(str) Or str = "")) Then
+        verify = MsgBox("Are you sure you want to save?", vbYesNo)
+        If verify = vbYes Then
+                customerUnbound.Fields("address1") = Me.address1
+                customerUnbound.Fields("EMail") = Me.EMail
+                customerUnbound.Fields("fax") = Me.fax
+                customerUnbound.Fields("firstName") = Me.firstName
+                customerUnbound.Fields("lastName") = Me.lastName
+                customerUnbound.Fields("city") = Me.city
+                customerUnbound.Fields("postalCode") = Me.postalCode
+                customerUnbound.Fields("category") = Me.selectType.Value
+                customerUnbound.Fields("provinceCode") = Me.provinceName.Value
+                customerUnbound.Fields("phone") = Me.phone.Value
+                customerUnbound.Update
+        End If
+            MsgBox ("The Data is valid and saved!")
+            BrowseMode True
+            LoadFields
+            'UpdateList
+            Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+    Else 'error message to show
+        MsgBox "Please Correct the following errors!!" & vbNewLine & String(52, "-") & vbCrLf & errors & vbCrLf
+    End If
+
+End Sub
+'------------------------------------------------------------
+' load from
+'
+'------------------------------------------------------------
+Private Sub Form_Load()
+        ' Set the connection of the form to the connection var
+        Set connection = CurrentProject.connection
+        ' Create a SQL statement that SELECT's everything from
+        customerUnbound.Open "SELECT * FROM customer ORDER BY lastName", connection, adOpenKeyset, adLockOptimistic
+        ' Use the LoadFields function to load all of the fields
+        If customerUnbound.RecordCount < 0 Then
+            DataEmptyMode
+        Else
+            BrowseMode True
+            LoadFields
+            UpdateList
+            Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+            Me.TextTotalRecords = customerUnbound.RecordCount
+           
+        End If
+End Sub
+'------------------------------------------------------------
+' load fields from Customer Tabel Into Form
+'
+'------------------------------------------------------------
+Private Sub LoadFields()
+    ' Set your unbound textfields to the fields you want from the customer table
+    Me.customerNumber.Value = customerUnbound.Fields("customerNumber")
+    Me.firstName = customerUnbound.Fields("firstName")
+    Me.lastName = customerUnbound.Fields("lastName")
+    Me.address1 = customerUnbound.Fields("address1")
+    Me.selectType = customerUnbound.Fields("category")
+    Me.phone = customerUnbound.Fields("phone")
+    Me.EMail = customerUnbound.Fields("EMail")
+    Me.fax = customerUnbound.Fields("fax")
+    Me.city = customerUnbound.Fields("city")
+    Me.postalCode = customerUnbound.Fields("postalCode")
+    Me.provinceName = customerUnbound.Fields("provinceCode")
+End Sub
+'------------------------------------------------------------
+'check the errors
+'
+'------------------------------------------------------------
+Private Function Edit() As String
+    Dim errors As String
+    errors = ""
+    If (IsNull(Me.lastName.Value) Or Me.lastName.Value = "") Then
+        Me.lastName.SetFocus
+        errors = errors & "-Last Name shouldn't be empty " & vbNewLine
+    End If
+    If (IsNull(Me.firstName.Value) Or Me.firstName.Value = "") Then
+        If errors = "" Then
+            Me.firstName.SetFocus
+        End If
+        errors = errors & "-First Name shouldn't be empty " & vbNewLine
+    End If
+    If Len(Me.address1.Value) < 5 Or IsNull(Me.address1.Value) Then
+        If errors = "" Then
+            Me.address1.SetFocus
+        End If
+        errors = errors & "-Address Should be more than 5 Char " & vbNewLine
+    End If
+    If (Len(Me.city.Value) < 3) Or IsNull(Me.city.Value) Then
+        If errors = "" Then
+            Me.address1.SetFocus
+        End If
+        errors = errors & "-City Should be more than 3 Char " & vbNewLine
+    End If
+   If (IsNull(Me.provinceName.Value) Or Me.provinceName.Value = "") Then
+        If errors = "" Then
+           Me.provinceName.SetFocus
+        End If
+        errors = errors & "-Province Name should be selected " & vbNewLine
+    End If
+    If (Not IsNull(Me.postalCode.Value)) Then
+            Trim (Me.postalCode.Value)
+        If Len(Me.postalCode.Value) <> 6 Then
+            If errors = "" Then
+                Me.postalCode.SetFocus
+            End If
+            errors = errors & "-postal should be empty or 6 char " & vbNewLine
+        End If
+    End If
+    If (Not IsNull(Me.phone.Value)) Then
+        Trim (Me.phone.Value)
+        If Len(Me.phone.Value) <> 10 Then
+            If errors = "" Then
+                Me.phone.SetFocus
+            End If
+            errors = errors & "-phoneNumber should be empty or 10 char " & vbNewLine
+        End If
+    End If
+    If (Not IsNull(Me.fax.Value)) Then
+        Trim (Me.phone.Value)
+        If Len(Me.fax.Value) <> 10 Then
+            If errors = "" Then
+                Me.fax.SetFocus
+            End If
+            errors = errors & "-fax Number should be empty or 10 char " & vbNewLine
+        End If
+    End If
+    If (Not IsNull(Me.EMail.Value)) Then
+        Trim (Me.EMail.Value)
+    Else
+        errors = errors & "-Email should be empty or more than 10 Char" & vbNewLine
+    End If
+    If (IsNull(Me.selectType.Value)) Then
+         errors = errors & "-Select Customer Type " & vbNewLine
+    End If
+    
+    Edit = errors
+End Function
+'------------------------------------------------------------
+' match the list with the other data when list clicked
+'
+'------------------------------------------------------------
+Private Sub ListSelectCustomer_Click()
+        Dim moveTo As Long
+        moveTo = Me.ListSelectCustomer.ListIndex
+        customerUnbound.MoveFirst
+        customerUnbound.Move (moveTo)
+        LoadFields
+End Sub
+
+'------------------------------------------------------------
+' Exit the form
+'
+'------------------------------------------------------------
+Private Sub btnExit_Click()
+    DoCmd.Close , ""
+End Sub
+
+'------------------------------------------------------------
+' btnDelete_Click,delete record
+'
+'------------------------------------------------------------
+Private Sub btnDelete_Click()
+    Dim customerUnboundClone As New ADODB.Recordset
+    Set customerUnboundClone = customerUnbound.Clone
+    If customerUnbound.AbsolutePosition = customerUnbound.RecordCount And Not customerUnbound.AbsolutePosition = 1 Then
+        customerUnboundClone.Move (customerUnbound.AbsolutePosition - 1)
+    Else
+        customerUnboundClone.Move (customerUnbound.AbsolutePosition)
+    End If
+    customerUnbound.Delete
+    customerUnbound.Requery
+    If customerUnbound.RecordCount < 0 Then
+        DataEmptyMode
+    Else
+        LoadFields
+        UpdateList
+       ' Me.ListSelectCustomer.Selected(customerUnbound.AbsolutePosition - 1) = True
+       Me.ListSelectCustomer = Me.ListSelectCustomer.ItemData(customerUnbound.AbsolutePosition - 1)
+    BrowseMode True
+    End If
+End Sub
+
+'------------------------------------------------------------
+' lock controls if database is empty
+'
+'------------------------------------------------------------
+Private Sub DataEmptyMode()
+    Dim ctrl As Control 'declare control
+           For Each ctrl In Me.Controls 'disable Controls when the database is empty
+                On Error Resume Next
+                If TypeOf ctrl Is TextBox Then
+                    ctrl.Locked = False
+                Else
+                    ctrl.Enabled = False
+                End If
+            Next ctrl
+            'enable add and exit only
+            Me.TextFind.Locked = True
+            Me.btnSave.Enabled = True
+            Me.btnExit.Enabled = True
+            Me.provinceName.Enabled = True
+            Me.btnCancel.Enabled = True
+            Me.ListSelectCustomer.Enabled = True
+            DoCmd.GoToRecord , "", acNewRec 'open the form on empty record
+End Sub
